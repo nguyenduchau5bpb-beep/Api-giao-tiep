@@ -2,38 +2,26 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Lưu ý: Trên Vercel, dữ liệu lưu trong biến toàn cục (như list này) 
-# sẽ không lưu trữ vĩnh viễn vì serverless function sẽ "ngủ" sau khi xử lý xong request.
-# Nếu bạn chỉ cần chuyển tiếp hoặc in log, cách này hoàn toàn ổn.
-received_codes = []
+# Danh sách lưu trữ team code tạm thời
+team_codes_queue = []
 
 @app.route('/api/nhan-code', methods=['POST'])
-def nhan_team_code():
+def nhan_code():
     data = request.get_json()
-    if not data:
-        return jsonify({"status": "error", "message": "No data provided"}), 400
-    
-    team_code = data.get("team_code")
-    uid = data.get("uid")
-    nickname = data.get("nickname")
-    
-    print(f"[API NHẬN] Team Code: {team_code} từ UID: {uid} ({nickname})")
-    
-    received_codes.append({
-        "team_code": team_code,
-        "uid": uid,
-        "nickname": nickname
-    })
-    
-    return jsonify({"status": "success", "message": "Received successfully"}), 200
+    if data and "team_code" in data:
+        code = data["team_code"]
+        team_codes_queue.append(code)
+        return jsonify({"status": "success", "team_code": code}), 200
+    return jsonify({"status": "error"}), 400
 
 @app.route('/api/lay-code', methods=['GET'])
-def lay_team_code():
-    if received_codes:
-        item = received_codes.pop(0)
-        return jsonify({"status": "success", "data": item}), 200
-    return jsonify({"status": "empty", "data": None}), 200
+def lay_code():
+    if team_codes_queue:
+        # Lấy team code cũ nhất ra khỏi hàng đợi
+        code = team_codes_queue.pop(0)
+        return jsonify({"status": "success", "team_code": code}), 200
+    return jsonify({"status": "empty", "team_code": None}), 200
 
 @app.route('/', methods=['GET'])
 def home():
-    return jsonify({"status": "online", "message": "Free Fire API Server is running on Vercel!"}), 200
+    return jsonify({"status": "online"}), 200
